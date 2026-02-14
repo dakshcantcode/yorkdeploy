@@ -10,9 +10,10 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain,
   Activity,
@@ -73,6 +74,16 @@ const FEATURES = [
 
 export default function HomePage() {
   const [learnOpen, setLearnOpen] = useState(false);
+  const [cinematicActive, setCinematicActive] = useState(false);
+
+  // Cinematic mode: fade out all 2D UI during the 3D camera dive
+  const handleCinematicChange = useCallback(
+    (state: { isWarping: boolean; hasReachedNucleus: boolean; zoom: number }) => {
+      // Activate cinematic mode when warp starts OR zoom crosses 0.6 threshold
+      setCinematicActive(state.isWarping || state.hasReachedNucleus || state.zoom > 0.6);
+    },
+    []
+  );
 
   // Environment cleanup — clear stale localhost storage on mount
   useEffect(() => {
@@ -89,8 +100,17 @@ export default function HomePage() {
       {/* Scanline CRT overlay */}
       <div className="scanline-overlay" />
 
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-cyan-500/10 bg-black/70 backdrop-blur-xl">
+      {/* Navigation — fades out during cinematic dive */}
+      <AnimatePresence>
+        {!cinematicActive && (
+          <motion.nav
+            key="nav"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="fixed top-0 left-0 right-0 z-50 border-b border-cyan-500/10 bg-black/70 backdrop-blur-xl"
+          >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-1.5 pixel-border border-cyan-500/20 bg-cyan-500/10">
@@ -118,58 +138,77 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </nav>
+          </motion.nav>
+        )}
+      </AnimatePresence>
 
-      {/* Learn Popover Card */}
-      {learnOpen && (
-        <>
-          <div className="fixed inset-0 z-[55]" onClick={() => setLearnOpen(false)} />
-          <div className="fixed top-16 right-4 z-[60] w-80 animate-fade-in">
-            <Card className="bg-zinc-950/95 backdrop-blur-xl border-cyan-500/15 shadow-2xl pixel-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-cyan-300 flex items-center gap-2 font-mono">
-                  <BrainCircuit className="w-4 h-4 neon-icon" />
-                  Parkinson&apos;s Screening
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Motor biomarker analysis for early detection
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-zinc-400 space-y-2 pt-0">
-                <p>
-                  Archimedes spiral and wave tests capture motor control
-                  anomalies — tremor, bradykinesia, and micrographia — among
-                  the earliest detectable signs of PD.
-                </p>
-                <p>
-                  We record (x,&nbsp;y,&nbsp;t) coordinates at high resolution
-                  and compute radial deviation, speed variance, and tremor
-                  frequency to produce a screening score.
-                </p>
-                <p className="text-zinc-600 text-[10px] font-mono">
-                  Not a medical device. For screening &amp; educational purposes only.
-                </p>
-                <Link href="/detector">
-                  <Button size="sm" className="w-full gap-1.5 mt-2 pixel-border rounded-none border-cyan-500/30" onClick={() => setLearnOpen(false)}>
-                    <Activity className="w-3.5 h-3.5 neon-icon" />
-                    Try the Detector
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+      {/* Learn Popover Card — also fades with cinematic mode */}
+      <AnimatePresence>
+        {!cinematicActive && learnOpen && (
+          <motion.div
+            key="learn-popover"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          >
+            <div className="fixed inset-0 z-[55]" onClick={() => setLearnOpen(false)} />
+            <div className="fixed top-16 right-4 z-[60] w-80 animate-fade-in">
+              <Card className="bg-zinc-950/95 backdrop-blur-xl border-cyan-500/15 shadow-2xl pixel-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-cyan-300 flex items-center gap-2 font-mono">
+                    <BrainCircuit className="w-4 h-4 neon-icon" />
+                    Parkinson&apos;s Screening
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Motor biomarker analysis for early detection
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-xs text-zinc-400 space-y-2 pt-0">
+                  <p>
+                    Archimedes spiral and wave tests capture motor control
+                    anomalies — tremor, bradykinesia, and micrographia — among
+                    the earliest detectable signs of PD.
+                  </p>
+                  <p>
+                    We record (x,&nbsp;y,&nbsp;t) coordinates at high resolution
+                    and compute radial deviation, speed variance, and tremor
+                    frequency to produce a screening score.
+                  </p>
+                  <p className="text-zinc-600 text-[10px] font-mono">
+                    Not a medical device. For screening &amp; educational purposes only.
+                  </p>
+                  <Link href="/detector">
+                    <Button size="sm" className="w-full gap-1.5 mt-2 pixel-border rounded-none border-cyan-500/30" onClick={() => setLearnOpen(false)}>
+                      <Activity className="w-3.5 h-3.5 neon-icon" />
+                      Try the Detector
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <section className="relative h-screen w-full overflow-hidden">
         {/* 3D Neuron Canvas Background */}
         <div className="absolute inset-0">
-          <HeroNeuron />
+          <HeroNeuron onCinematicChange={handleCinematicChange} />
         </div>
 
-        {/* Hero Text Overlay — z-10 ensures buttons stay above canvas layer */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+        {/* Hero Text Overlay — fades out during cinematic dive */}
+        <AnimatePresence>
+          {!cinematicActive && (
+            <motion.div
+              key="hero-text"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
+            >
           <div className="text-center space-y-6 px-4 pointer-events-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 pixel-border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-xs font-mono animate-fade-in">
               <Binary className="w-3.5 h-3.5 neon-icon" />
@@ -209,10 +248,23 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+        {/* Bottom gradient fade — fades with UI */}
+        <AnimatePresence>
+          {!cinematicActive && (
+            <motion.div
+              key="hero-gradient"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent"
+            />
+          )}
+        </AnimatePresence>
       </section>
 
       {/* Features Section */}
