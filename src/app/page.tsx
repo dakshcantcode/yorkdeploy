@@ -211,13 +211,13 @@ export default function HomePage() {
               className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
             >
           <div className="text-center space-y-6 px-4 pointer-events-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 pixel-border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-xs font-mono animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-3 py-1 pixel-border border-cyan-500/25 bg-black/60 text-cyan-400 text-xs font-mono animate-fade-in backdrop-blur-sm">
               <Binary className="w-3.5 h-3.5 neon-icon" />
               Early Detection Research Tool
             </div>
 
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight animate-slide-up font-mono">
-              <span className="bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-transparent">
+            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight animate-slide-up font-mono drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]">
+              <span className="bg-gradient-to-b from-white to-zinc-300 bg-clip-text text-transparent">
                 Neuro
               </span>
               <span className="bg-gradient-to-r from-pink-400 to-cyan-400 bg-clip-text text-transparent">
@@ -225,7 +225,7 @@ export default function HomePage() {
               </span>
             </h1>
 
-            <p className="text-zinc-400 text-lg sm:text-xl max-w-xl mx-auto animate-slide-up leading-relaxed">
+            <p className="text-zinc-300 text-lg sm:text-xl max-w-xl mx-auto animate-slide-up leading-relaxed drop-shadow-[0_0_12px_rgba(0,0,0,0.8)]">
               Screen for early Parkinson&apos;s indicators using the
               Archimedes spiral test — powered by real-time motor analysis.
             </p>
