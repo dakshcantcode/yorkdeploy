@@ -14,8 +14,8 @@ import React, {
   useRef,
   useEffect,
   useMemo,
+  useState,
 } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   project3D,
   rotateX,
@@ -25,6 +25,7 @@ import {
   type Vec3,
 } from "@/lib/utils";
 import { useNeuronZoom } from "@/hooks/use-neuron-zoom";
+import FactOverlay from "@/components/canvas/FactOverlay";
 
 /* ─── Branch Node Type ─────────────────────────────────────────────────── */
 
@@ -186,6 +187,10 @@ export default function HeroNeuron() {
   const warpProgressRef = useRef<number>(0);
   const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const stemPositionsRef = useRef<{ x: number; y: number }[]>([]);
+  const hoverExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Screen-space stem positions exposed to React for the overlay
+  const [stemPositions, setStemPositions] = useState<{ x: number; y: number }[]>([]);
 
   const {
     zoom,
@@ -271,7 +276,22 @@ export default function HeroNeuron() {
           break;
         }
       }
-      hoveredStemRef.current = found;
+
+      // Debounced hover exit — 120ms grace period prevents flicker
+      if (found !== null) {
+        if (hoverExitTimer.current) {
+          clearTimeout(hoverExitTimer.current);
+          hoverExitTimer.current = null;
+        }
+        hoveredStemRef.current = found;
+      } else if (hoveredStemRef.current !== null) {
+        if (!hoverExitTimer.current) {
+          hoverExitTimer.current = setTimeout(() => {
+            hoveredStemRef.current = null;
+            hoverExitTimer.current = null;
+          }, 120);
+        }
+      }
     }
 
     function onClick() {
@@ -292,6 +312,7 @@ export default function HeroNeuron() {
     return () => {
       canvas.removeEventListener("mousemove", onMove);
       canvas.removeEventListener("click", onClick);
+      if (hoverExitTimer.current) clearTimeout(hoverExitTimer.current);
     };
   }, [setActiveStem]);
 
@@ -712,6 +733,7 @@ export default function HeroNeuron() {
         });
 
         stemPositionsRef.current = positions;
+        setStemPositions([...positions]);
       }
 
       // White flash overlay during peak warp
@@ -741,36 +763,13 @@ export default function HeroNeuron() {
         style={{ touchAction: "none" }}
       />
 
-      {/* Synaptic Fact Reveal — Framer Motion */}
-      <AnimatePresence>
-        {hasReachedNucleus && activeStem !== null && (
-          <motion.div
-            key={activeStem}
-            initial={{ opacity: 0, y: 20, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 pointer-events-auto max-w-sm w-full"
-          >
-            <div className="bg-zinc-900/90 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-5 shadow-[0_0_40px_rgba(0,220,255,0.08)]">
-              <h3 className="text-cyan-300 font-semibold text-sm tracking-wide mb-1">
-                {SYNAPTIC_STEMS[activeStem].fact.title}
-              </h3>
-              <p className="text-zinc-400 text-xs leading-relaxed mb-3">
-                {SYNAPTIC_STEMS[activeStem].fact.body}
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-cyan-400 font-mono text-lg font-bold">
-                  {SYNAPTIC_STEMS[activeStem].fact.stat}
-                </span>
-                <span className="text-zinc-500 text-[10px] uppercase tracking-widest">
-                  {SYNAPTIC_STEMS[activeStem].fact.statLabel}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Synaptic Fact Overlay — glassmorphic tooltip at node position */}
+      <FactOverlay
+        activeStemId={activeStem}
+        visible={hasReachedNucleus}
+        positions={stemPositions}
+        facts={SYNAPTIC_STEMS.map((s) => s.fact)}
+      />
 
       {/* Scroll hint — shown before user starts scrolling */}
       {zoom < 0.03 && !isWarping && !hasReachedNucleus && (
