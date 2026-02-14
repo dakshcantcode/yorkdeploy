@@ -55,7 +55,7 @@ export function useNeuronZoom(
           // Scrolling back out — reset warp state and begin zooming out
           setHasReachedNucleus(false);
           warpTriggered.current = false;
-          setZoom(0.8); // start zoom-out from near-threshold
+          setZoom(0.7); // start zoom-out from near-threshold (below 0.85 to avoid re-warp)
         }
         return;
       }
