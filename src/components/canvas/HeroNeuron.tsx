@@ -1,9 +1,10 @@
 /**
- * NeuroSketch — Living Neuron 3D Canvas Engine
+ * NeuroSketch — First-Person 3D Neuron Canvas Engine
  *
- * Recursive 3D projected neuron with invisible scroll-interceptor
- * zoom, immersive warp-speed dive, and synaptic fact-stems that
- * branch from the nucleus after the warp completes.
+ * Immersive first-person camera that dives through a recursive 3D
+ * neuron web. Features near-clipping for fly-past effects, depth-fog
+ * for spatial perception, mouse-parallax look-around inside the
+ * nucleus, and 3D spatial fact nodes with proximity-based glow.
  *
  * @module components/canvas/HeroNeuron
  */
@@ -106,12 +107,11 @@ interface Particle {
 
 /* ─── Main Component ──────────────────────────────────────────────────── */
 
-/* ─── Synaptic Stem Definitions ────────────────────────────────────────── */
+/* ─── 3D Spatial Fact Definitions ──────────────────────────────────────── */
 
-interface SynapticStem {
+interface SpatialFact {
   id: number;
-  angle: number;      // radians
-  length: number;     // px from center
+  pos: Vec3;           // 3D world-space coordinate
   fact: {
     title: string;
     body: string;
@@ -120,11 +120,10 @@ interface SynapticStem {
   };
 }
 
-const SYNAPTIC_STEMS: SynapticStem[] = [
+const SPATIAL_FACTS: SpatialFact[] = [
   {
     id: 0,
-    angle: -Math.PI / 2,          // top
-    length: 120,
+    pos: { x: -100, y: -70, z: 80 },
     fact: {
       title: "Dopamine Depletion",
       body: "Loss of dopaminergic neurons in the substantia nigra disrupts motor signal transmission, causing bradykinesia and rigidity.",
@@ -134,8 +133,7 @@ const SYNAPTIC_STEMS: SynapticStem[] = [
   },
   {
     id: 1,
-    angle: -Math.PI / 2 + (2 * Math.PI) / 5,
-    length: 110,
+    pos: { x: 110, y: -40, z: -60 },
     fact: {
       title: "Micrographia",
       body: "Progressive handwriting shrinkage is one of the earliest motor signs, detectable years before clinical diagnosis.",
@@ -145,8 +143,7 @@ const SYNAPTIC_STEMS: SynapticStem[] = [
   },
   {
     id: 2,
-    angle: -Math.PI / 2 + (4 * Math.PI) / 5,
-    length: 115,
+    pos: { x: -60, y: 80, z: 100 },
     fact: {
       title: "Resting Tremor",
       body: "A 4-6 Hz oscillation, typically starting unilaterally in the hand, is the hallmark motor symptom of Parkinson's disease.",
@@ -156,8 +153,7 @@ const SYNAPTIC_STEMS: SynapticStem[] = [
   },
   {
     id: 3,
-    angle: -Math.PI / 2 + (6 * Math.PI) / 5,
-    length: 105,
+    pos: { x: 80, y: 60, z: -80 },
     fact: {
       title: "Alpha-Synuclein",
       body: "Misfolded α-synuclein aggregates into Lewy bodies, spreading through neural circuits in a prion-like cascade.",
@@ -167,8 +163,7 @@ const SYNAPTIC_STEMS: SynapticStem[] = [
   },
   {
     id: 4,
-    angle: -Math.PI / 2 + (8 * Math.PI) / 5,
-    length: 118,
+    pos: { x: -30, y: -90, z: 140 },
     fact: {
       title: "Early Screening",
       body: "AI-powered spiral and wave analysis can detect subtle motor biomarkers with clinical-grade sensitivity.",
@@ -264,9 +259,10 @@ export default function HeroNeuron() {
     if (!canvas) return;
 
     function onMove(e: MouseEvent) {
-      if (!hasReachedNucleusRef.current) return;
       const rect = canvas!.getBoundingClientRect();
       mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+      if (!hasReachedNucleusRef.current) return;
 
       const positions = stemPositionsRef.current;
       let found: number | null = null;
@@ -357,8 +353,9 @@ export default function HeroNeuron() {
       rotAngleY: number,
       rotAngleX: number,
       globalAlpha: number,
-      cameraZ: number,
-      warpFactor: number
+      camZ: number,
+      warpFactor: number,
+      maxFogDist: number
     ) {
       // Rotate points
       let s = rotateY(node.start, rotAngleY);
@@ -366,9 +363,31 @@ export default function HeroNeuron() {
       let e = rotateY(node.end, rotAngleY);
       e = rotateX(e, rotAngleX);
 
-      // Move scene toward camera (fly into the neuron)
-      s = { ...s, z: s.z + cameraZ };
-      e = { ...e, z: e.z + cameraZ };
+      // Camera-relative Z (first-person: camera dives along Z)
+      const viewZs = s.z - camZ;
+      const viewZe = e.z - camZ;
+      const nearClipMin = -focalLength + 50;
+
+      // Both endpoints behind the camera eye → skip branch entirely
+      if (viewZs < nearClipMin && viewZe < nearClipMin) {
+        node.children.forEach((child) =>
+          renderBranch(child, time, focalLength, cx, cy, rotAngleY, rotAngleX, globalAlpha, camZ, warpFactor, maxFogDist)
+        );
+        return;
+      }
+
+      // Near-clip fade: branches approaching camera fade out gracefully
+      const minViewZ = Math.min(viewZs, viewZe);
+      const nearFade = minViewZ < 30
+        ? clamp((minViewZ - nearClipMin) / (30 - nearClipMin), 0, 1)
+        : 1;
+
+      // Depth-fog: distant branches are dimmer
+      const avgViewZ = (viewZs + viewZe) / 2;
+      const fogFactor = clamp(1 - avgViewZ / maxFogDist, 0.08, 1);
+
+      s = { ...s, z: viewZs };
+      e = { ...e, z: viewZe };
 
       const p1 = project3D(s, focalLength, cx, cy);
       const p2 = project3D(e, focalLength, cx, cy);
@@ -387,33 +406,35 @@ export default function HeroNeuron() {
       const g = Math.round(lerp(220, 140, depthRatio));
       const b = Math.round(lerp(255, 255, depthRatio));
 
-      // Warp brightens everything
+      // Warp brightens; fog and near-clip modulate alpha
       const warpBright = 1 + warpFactor * 2;
-      const lineWidth = Math.max(0.5, (1 - depthRatio) * 3 * p1.scale * warpStretch);
+      const lineWidth = Math.min(12, Math.max(0.5, (1 - depthRatio) * 3 * p1.scale * warpStretch));
       const alpha = clamp(
-        globalAlpha * pulse * (1 - depthRatio * 0.4) * p1.scale * warpBright,
+        globalAlpha * pulse * (1 - depthRatio * 0.4) * p1.scale * warpBright * nearFade * fogFactor,
         0,
         1
       );
 
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
+      if (alpha > 0.005) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
 
-      // During warp, extend lines outward from center for speed-line effect
-      if (warpFactor > 0.01) {
-        const dx = p2.x - cx;
-        const dy = p2.y - cy;
-        ctx.lineTo(
-          p2.x + dx * warpFactor * 2,
-          p2.y + dy * warpFactor * 2
-        );
-      } else {
-        ctx.lineTo(p2.x, p2.y);
+        // During warp, extend lines outward from center for speed-line effect
+        if (warpFactor > 0.01) {
+          const dx = p2.x - cx;
+          const dy = p2.y - cy;
+          ctx.lineTo(
+            p2.x + dx * warpFactor * 2,
+            p2.y + dy * warpFactor * 2
+          );
+        } else {
+          ctx.lineTo(p2.x, p2.y);
+        }
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.stroke();
       }
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      ctx.lineWidth = lineWidth;
-      ctx.lineCap = "round";
-      ctx.stroke();
 
       // Render children
       node.children.forEach((child) =>
@@ -426,8 +447,9 @@ export default function HeroNeuron() {
           rotAngleY,
           rotAngleX,
           globalAlpha,
-          cameraZ,
-          warpFactor
+          camZ,
+          warpFactor,
+          maxFogDist
         )
       );
     }
@@ -442,13 +464,26 @@ export default function HeroNeuron() {
       rotAngleY: number,
       rotAngleX: number,
       zoomLevel: number,
-      cameraZ: number,
+      camZ: number,
       warpFactor: number
     ) {
       let nucleusPos: Vec3 = { x: 0, y: 0, z: 0 };
       nucleusPos = rotateY(nucleusPos, rotAngleY);
       nucleusPos = rotateX(nucleusPos, rotAngleX);
-      nucleusPos = { ...nucleusPos, z: nucleusPos.z + cameraZ };
+
+      // Camera-relative Z for first-person dive
+      const viewZ = nucleusPos.z - camZ;
+      const nearClipMin = -focalLength + 50;
+
+      // Near-clip fade (nucleus approaching or passing camera)
+      const nearFade = viewZ < 30
+        ? clamp((viewZ - nearClipMin) / (30 - nearClipMin), 0, 1)
+        : 1;
+
+      // Skip if fully behind camera
+      if (nearFade < 0.01) return;
+
+      nucleusPos = { ...nucleusPos, z: viewZ };
 
       const projected = project3D(nucleusPos, focalLength, cx, cy);
       const baseRadius = 12 + zoomLevel * 30;
@@ -457,8 +492,8 @@ export default function HeroNeuron() {
       const warpExpand = 1 + warpFactor * 8;
       const radius = baseRadius * projected.scale * pulse * warpExpand;
 
-      // Outer glow — amplified during warp
-      const glowAlpha = (0.3 + warpFactor * 0.5) * pulse;
+      // Outer glow — near-clip fades it as camera passes through
+      const glowAlpha = (0.3 + warpFactor * 0.5) * pulse * nearFade;
       const glowGrad = ctx.createRadialGradient(
         projected.x,
         projected.y,
@@ -482,7 +517,8 @@ export default function HeroNeuron() {
       ctx.fillStyle = glowGrad;
       ctx.fill();
 
-      // Core
+      // Core — alpha modulated by near-clip
+      const coreAlpha = nearFade;
       const coreGrad = ctx.createRadialGradient(
         projected.x,
         projected.y,
@@ -491,9 +527,9 @@ export default function HeroNeuron() {
         projected.y,
         radius
       );
-      coreGrad.addColorStop(0, "rgba(200, 255, 255, 0.95)");
-      coreGrad.addColorStop(0.4, "rgba(0, 220, 255, 0.8)");
-      coreGrad.addColorStop(1, "rgba(0, 100, 200, 0.2)");
+      coreGrad.addColorStop(0, `rgba(200, 255, 255, ${0.95 * coreAlpha})`);
+      coreGrad.addColorStop(0.4, `rgba(0, 220, 255, ${0.8 * coreAlpha})`);
+      coreGrad.addColorStop(1, `rgba(0, 100, 200, ${0.2 * coreAlpha})`);
 
       ctx.beginPath();
       ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
@@ -510,8 +546,9 @@ export default function HeroNeuron() {
       cy: number,
       rotAngleY: number,
       rotAngleX: number,
-      cameraZ: number,
-      warpFactor: number
+      camZ: number,
+      warpFactor: number,
+      maxFogDist: number
     ) {
       particles.forEach((p) => {
         // During warp, particles accelerate dramatically
@@ -526,10 +563,25 @@ export default function HeroNeuron() {
 
         let rPos = rotateY(pos, rotAngleY);
         rPos = rotateX(rPos, rotAngleX);
-        rPos = { ...rPos, z: rPos.z + cameraZ };
 
+        // Camera-relative Z
+        const viewZ = rPos.z - camZ;
+        const nearClipMin = -focalLength + 50;
+
+        // Behind camera → skip
+        if (viewZ < nearClipMin) return;
+
+        // Near-clip fade
+        const nearFade = viewZ < 30
+          ? clamp((viewZ - nearClipMin) / (30 - nearClipMin), 0, 1)
+          : 1;
+
+        // Depth-fog: distant particles are dimmer
+        const fogFactor = clamp(1 - viewZ / maxFogDist, 0.08, 1);
+
+        rPos = { ...rPos, z: viewZ };
         const proj = project3D(rPos, focalLength, cx, cy);
-        const alpha = 0.4 + 0.6 * Math.sin(time * 5 + p.branch.pulsePhase);
+        const alpha = (0.4 + 0.6 * Math.sin(time * 5 + p.branch.pulsePhase)) * nearFade * fogFactor;
 
         // During warp, particles get trail effect
         const trailLen = warpFactor * 6;
@@ -548,20 +600,19 @@ export default function HeroNeuron() {
           ctx.stroke();
         }
 
-        ctx.beginPath();
-        ctx.arc(
-          proj.x,
-          proj.y,
-          p.size * proj.scale * (1 + warpFactor),
-          0,
-          Math.PI * 2
-        );
+        // Square pixel particles with depth-fog
+        const pxSize = Math.min(8, p.size * proj.scale * (1 + warpFactor));
         ctx.fillStyle = `rgba(0, 255, 220, ${clamp(
           alpha * proj.scale * (1 + warpFactor * 2),
           0,
           1
         )})`;
-        ctx.fill();
+        ctx.fillRect(
+          proj.x - pxSize / 2,
+          proj.y - pxSize / 2,
+          pxSize,
+          pxSize
+        );
       });
     }
 
@@ -601,6 +652,10 @@ export default function HeroNeuron() {
 
     let currentZoom = 0;
     let postGlowExpand = 1;   // eased expansion after glow
+    let cameraZPos = -500;    // first-person camera Z position
+    let parallaxX = 0;        // smoothed mouse parallax yaw
+    let parallaxY = 0;        // smoothed mouse parallax pitch
+    let autoTriggered = false; // one-shot proximity trigger after warp
 
     function animate() {
       const time = (timeRef.current += 0.016);
@@ -644,104 +699,162 @@ export default function HeroNeuron() {
       const cx = width / 2;
       const cy = height / 2;
       const focalLength = 400;
+      const maxFogDist = 900;
 
-      // Camera flies forward along Z toward origin (0,0,0)
-      // cameraZ offsets every point's Z, pulling the scene toward the viewer
-      // so the nucleus at (0,0,0) stays perfectly centered on screen.
-      const warpCameraBoost = warpFactor * 600;
-      const cameraZ = currentZoom * 350 + warpCameraBoost;
+      // ── First-Person Camera Z ────────────────────────────
+      // Camera dives from z=-500 toward origin, blasts through during warp,
+      // then settles at z=0 (inside the nucleus).
+      let targetCamZ: number;
+      if (isWarpingRef.current) {
+        targetCamZ = 600;   // blast through the neural web
+      } else if (hasReachedNucleusRef.current) {
+        targetCamZ = 0;     // settle at the nucleus center
+      } else {
+        targetCamZ = -500 + currentZoom * 588; // zoom 0→0.85 maps -500→0
+      }
+      const camLerp = isWarpingRef.current ? 0.035 : 0.06;
+      cameraZPos = lerp(cameraZPos, targetCamZ, camLerp);
 
-      // Kill rotation as zoom deepens so the camera locks onto center
-      const rotDampen = Math.max(0, 1 - currentZoom * 1.4);
-      const rotSpeed = 0.15 * rotDampen;
-      const rotY = time * rotSpeed;
-      const rotXAngle = Math.sin(time * 0.1) * 0.15 * rotDampen;
+      // ── Camera Rotation ──────────────────────────────────
+      // Pre-nucleus: gentle auto-spin dampened by zoom
+      // Post-nucleus: mouse parallax look-around
+      let rotY: number;
+      let rotXAngle: number;
+
+      if (hasReachedNucleusRef.current) {
+        // Inside nucleus — mouse parallax replaces auto-rotation
+        const mx = width > 0 ? (mouseRef.current.x - cx) / (width * 0.5) : 0;
+        const my = height > 0 ? (mouseRef.current.y - cy) / (height * 0.5) : 0;
+        parallaxX = lerp(parallaxX, mx * 0.35, 0.04);
+        parallaxY = lerp(parallaxY, my * 0.25, 0.04);
+        rotY = parallaxX;
+        rotXAngle = parallaxY;
+      } else {
+        // Pre-nucleus: auto-rotation dampened by zoom depth
+        const rotDampen = Math.max(0, 1 - currentZoom * 1.4);
+        const rotSpeed = 0.15 * rotDampen;
+        rotY = time * rotSpeed;
+        rotXAngle = Math.sin(time * 0.1) * 0.15 * rotDampen;
+      }
 
       // Render warp-speed lines behind everything
       renderWarpLines(cx, cy, warpFactor, time);
 
-      // Render neuron branches
+      // Render neuron branches (with near-clipping + depth-fog)
       trees.forEach((tree) => {
-        renderBranch(tree, time, focalLength, cx, cy, rotY, rotXAngle, 0.9, cameraZ, warpFactor);
+        renderBranch(tree, time, focalLength, cx, cy, rotY, rotXAngle, 0.9, cameraZPos, warpFactor, maxFogDist);
       });
 
-      // Render nucleus
-      renderNucleus(time, focalLength, cx, cy, rotY, rotXAngle, currentZoom, cameraZ, warpFactor);
+      // Render nucleus (near-clip fades as camera passes through)
+      renderNucleus(time, focalLength, cx, cy, rotY, rotXAngle, currentZoom, cameraZPos, warpFactor);
 
-      // Render synapse particles
-      renderParticles(time, focalLength, cx, cy, rotY, rotXAngle, cameraZ, warpFactor);
+      // Render synapse particles (square pixels + depth-fog)
+      renderParticles(time, focalLength, cx, cy, rotY, rotXAngle, cameraZPos, warpFactor, maxFogDist);
 
-      // ── Synaptic Stems (after warp completes) ──────────────
+      // ── 3D Spatial Fact Nodes (after warp completes) ──────
       if (hasReachedNucleusRef.current) {
         const stemTime = time;
         const positions: { x: number; y: number }[] = [];
+        let closestIdx: number | null = null;
+        let closestScreenDist = Infinity;
 
-        // Scale stems relative to viewport so they space evenly
-        // postGlowExpand eases to 1.18 after warp, pushing stems into negative space
-        const stemScale = (Math.min(width, height) / 600) * postGlowExpand;
+        SPATIAL_FACTS.forEach((sf, idx) => {
+          // Project fact node through the same 3D camera transform
+          let worldPos = rotateY(sf.pos, rotY);
+          worldPos = rotateX(worldPos, rotXAngle);
+          const viewZ = worldPos.z - cameraZPos;
 
-        SYNAPTIC_STEMS.forEach((stem, idx) => {
-          const wobble = Math.sin(stemTime * 1.5 + stem.angle * 3) * 3;
-          const scaledLen = stem.length * stemScale;
-          const endX = cx + Math.cos(stem.angle) * (scaledLen + wobble);
-          const endY = cy + Math.sin(stem.angle) * (scaledLen + wobble);
+          // Behind camera → push offscreen placeholder
+          if (viewZ < -focalLength + 50) {
+            positions.push({ x: -9999, y: -9999 });
+            return;
+          }
 
-          // Dendrite branch line
+          const proj = project3D({ x: worldPos.x, y: worldPos.y, z: viewZ }, focalLength, cx, cy);
+
+          // Post-glow expansion pushes facts outward
+          const stemX = cx + (proj.x - cx) * postGlowExpand;
+          const stemY = cy + (proj.y - cy) * postGlowExpand;
+
+          // 3D proximity → glow intensity
+          const dist3D = Math.sqrt(worldPos.x ** 2 + worldPos.y ** 2 + viewZ ** 2);
+          const proximity = clamp(1 - dist3D / 250, 0, 1);
+
+          // Screen-center distance for auto-trigger priority
+          const screenDist = Math.sqrt((stemX - cx) ** 2 + (stemY - cy) ** 2);
+          if (proximity > 0.15 && screenDist < closestScreenDist) {
+            closestScreenDist = screenDist;
+            closestIdx = idx;
+          }
+
+          // Hover or proximity-active state
           const isHot = hoveredStemRef.current === idx || activeStemRef.current === idx;
-          const baseAlpha = isHot ? 0.95 : 0.55 + 0.15 * Math.sin(stemTime * 2 + idx);
+          const glowIntensity = Math.max(proximity, isHot ? 1 : 0);
+          const baseAlpha = isHot ? 0.95 : 0.4 + proximity * 0.4 + 0.15 * Math.sin(stemTime * 2 + idx);
 
-          // Main stem line
-          const grad = ctx.createLinearGradient(cx, cy, endX, endY);
-          grad.addColorStop(0, `rgba(0, 220, 255, ${baseAlpha * 0.3})`);
-          grad.addColorStop(1, `rgba(0, 255, 200, ${baseAlpha})`);
+          // Depth-fog for the stem line
+          const stemFog = clamp(1 - viewZ / 900, 0.15, 1);
+          const lineAlpha = baseAlpha * stemFog;
+
+          // Dendrite stem line from center to fact node
+          const grad = ctx.createLinearGradient(cx, cy, stemX, stemY);
+          grad.addColorStop(0, `rgba(0, 220, 255, ${lineAlpha * 0.3})`);
+          grad.addColorStop(1, `rgba(0, 255, 200, ${lineAlpha})`);
 
           ctx.beginPath();
           ctx.moveTo(cx, cy);
-          // Slight organic curve
-          const cpx = (cx + endX) / 2 + Math.sin(stemTime + idx * 1.3) * 12;
-          const cpy = (cy + endY) / 2 + Math.cos(stemTime + idx * 0.9) * 12;
-          ctx.quadraticCurveTo(cpx, cpy, endX, endY);
+          const cpx = (cx + stemX) / 2 + Math.sin(stemTime + idx * 1.3) * 12;
+          const cpy = (cy + stemY) / 2 + Math.cos(stemTime + idx * 0.9) * 12;
+          ctx.quadraticCurveTo(cpx, cpy, stemX, stemY);
           ctx.strokeStyle = grad;
-          ctx.lineWidth = isHot ? 3 : 1.8;
+          ctx.lineWidth = isHot ? 3 : 1.5 + proximity;
           ctx.lineCap = "round";
           ctx.stroke();
 
-          // Terminal bulb (synapse)
-          const bulbRadius = isHot ? 10 : 6;
-          const bulbGlow = ctx.createRadialGradient(endX, endY, 0, endX, endY, bulbRadius * 2.5);
-          bulbGlow.addColorStop(0, `rgba(0, 255, 220, ${isHot ? 0.9 : 0.6})`);
-          bulbGlow.addColorStop(0.5, `rgba(0, 200, 255, ${isHot ? 0.35 : 0.15})`);
+          // Terminal bulb — glows with 3D proximity
+          const bulbRadius = 5 + glowIntensity * 6;
+          const bulbGlow = ctx.createRadialGradient(stemX, stemY, 0, stemX, stemY, bulbRadius * 2.5);
+          bulbGlow.addColorStop(0, `rgba(0, 255, 220, ${0.5 + glowIntensity * 0.45})`);
+          bulbGlow.addColorStop(0.5, `rgba(0, 200, 255, ${0.1 + glowIntensity * 0.3})`);
           bulbGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
           ctx.beginPath();
-          ctx.arc(endX, endY, bulbRadius * 2.5, 0, Math.PI * 2);
+          ctx.arc(stemX, stemY, bulbRadius * 2.5, 0, Math.PI * 2);
           ctx.fillStyle = bulbGlow;
           ctx.fill();
 
           ctx.beginPath();
-          ctx.arc(endX, endY, bulbRadius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(180, 255, 240, ${isHot ? 0.95 : 0.7})`;
+          ctx.arc(stemX, stemY, bulbRadius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(180, 255, 240, ${0.6 + glowIntensity * 0.35})`;
           ctx.fill();
 
-          // Small branching dendrites off the stem
+          // Sub-dendrites off the stem
           for (let b = 0; b < 3; b++) {
             const t = 0.35 + b * 0.2;
-            const branchStartX = cx + (endX - cx) * t + Math.sin(stemTime + b) * 4;
-            const branchStartY = cy + (endY - cy) * t + Math.cos(stemTime + b) * 4;
-            const branchAngle = stem.angle + (b - 1) * 0.6;
-            const branchLen = 18 + Math.sin(stemTime * 2 + b) * 4;
-            const branchEndX = branchStartX + Math.cos(branchAngle) * branchLen;
-            const branchEndY = branchStartY + Math.sin(branchAngle) * branchLen;
+            const bsx = cx + (stemX - cx) * t + Math.sin(stemTime + b) * 4;
+            const bsy = cy + (stemY - cy) * t + Math.cos(stemTime + b) * 4;
+            const bAngle = Math.atan2(stemY - cy, stemX - cx) + (b - 1) * 0.6;
+            const bLen = 18 + Math.sin(stemTime * 2 + b) * 4;
+            const bex = bsx + Math.cos(bAngle) * bLen;
+            const bey = bsy + Math.sin(bAngle) * bLen;
 
             ctx.beginPath();
-            ctx.moveTo(branchStartX, branchStartY);
-            ctx.lineTo(branchEndX, branchEndY);
-            ctx.strokeStyle = `rgba(0, 220, 255, ${baseAlpha * 0.35})`;
+            ctx.moveTo(bsx, bsy);
+            ctx.lineTo(bex, bey);
+            ctx.strokeStyle = `rgba(0, 220, 255, ${lineAlpha * 0.35})`;
             ctx.lineWidth = 0.8;
             ctx.stroke();
           }
 
-          positions.push({ x: endX, y: endY });
+          positions.push({ x: stemX, y: stemY });
         });
+
+        // Auto-trigger: activate closest fact once after warp settles
+        if (!autoTriggered && closestIdx !== null) {
+          autoTriggered = true;
+          hoveredStemRef.current = closestIdx;
+          setHoveredStemId(closestIdx);
+          setActiveStem(closestIdx);
+        }
 
         stemPositionsRef.current = positions;
         setStemPositions([...positions]);
@@ -780,7 +893,7 @@ export default function HeroNeuron() {
         activeStemId={hoveredStemId}
         visible={hasReachedNucleus}
         positions={stemPositions}
-        facts={SYNAPTIC_STEMS.map((s) => s.fact)}
+        facts={SPATIAL_FACTS.map((s) => s.fact)}
         onMouseEnter={() => {
           if (hoverExitTimer.current) {
             clearTimeout(hoverExitTimer.current);
