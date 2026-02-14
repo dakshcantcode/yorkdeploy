@@ -53,6 +53,12 @@ const FEATURES = [
       "Draw an Archimedes spiral and get instant motor function analysis using validated clinical metrics.",
   },
   {
+    icon: Activity,
+    title: "Wave Analysis",
+    description:
+      "Trace a sinusoidal wave to measure hand tremor frequency, speed consistency, and lateral deviation.",
+  },
+  {
     icon: Zap,
     title: "Real-Time Detection",
     description:
@@ -76,14 +82,14 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-900/50 bg-black/60 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="p-1.5 rounded-lg bg-cyan-500/10">
               <Brain className="w-5 h-5 text-cyan-400" />
             </div>
             <span className="font-bold text-lg tracking-tight">
               NeuroDetect
             </span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -229,7 +235,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {FEATURES.map((feature) => (
               <Card
                 key={feature.title}
