@@ -76,11 +76,12 @@ export default function HomePage() {
   const [learnOpen, setLearnOpen] = useState(false);
   const [cinematicActive, setCinematicActive] = useState(false);
 
-  // Cinematic mode: fade out all 2D UI during the 3D camera dive
+  // Cinematic mode: bidirectional — fades out on dive, fades back in on zoom-out
   const handleCinematicChange = useCallback(
     (state: { isWarping: boolean; hasReachedNucleus: boolean; zoom: number }) => {
-      // Activate cinematic mode when warp starts OR zoom crosses 0.6 threshold
-      setCinematicActive(state.isWarping || state.hasReachedNucleus || state.zoom > 0.6);
+      // Activate when warp starts OR zoom crosses threshold;
+      // deactivate when zoom drops back below — enables snap-back
+      setCinematicActive(state.isWarping || state.hasReachedNucleus || state.zoom > 0.4);
     },
     []
   );
