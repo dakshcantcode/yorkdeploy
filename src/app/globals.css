@@ -67,6 +67,22 @@ body {
           drop-shadow(0 0 8px rgba(0, 220, 255, 0.25));
 }
 
+/* ─── Neon Pulse Animation ─────────────────────────────────────────── */
+.neon-pulse {
+  animation: neonPulse 2.5s ease-in-out infinite;
+}
+@keyframes neonPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(0, 220, 255, 0.5))
+            drop-shadow(0 0 8px rgba(0, 220, 255, 0.25));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(0, 220, 255, 0.8))
+            drop-shadow(0 0 16px rgba(0, 220, 255, 0.4))
+            drop-shadow(0 0 24px rgba(168, 85, 247, 0.2));
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
