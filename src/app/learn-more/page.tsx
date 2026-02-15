@@ -74,24 +74,7 @@ const PAPERS = [
     summary:
       "Compared guided vs. unguided spiral drawing tasks in PD patients. Found that guided spirals (tracing a template) provide more sensitive motor impairment measures than free-form drawing.",
   },
-  {
-    authors: "Pereira CR et al.",
-    title:
-      "A new computer vision–based approach to aid the diagnosis of Parkinson's disease.",
-    journal: "Comp Methods & Programs in Biomed. 2016",
-    url: "https://pubmed.ncbi.nlm.nih.gov/30131219/",
-    summary:
-      "Proposed a computer vision pipeline that extracts features from handwriting and spiral drawings to classify PD vs. healthy controls, achieving high accuracy with CNNs on image-based representations.",
-  },
-  {
-    authors: "Impedovo D, Pirlo G",
-    title:
-      "Dynamic handwriting analysis for the assessment of neurodegenerative diseases: a pattern recognition perspective.",
-    journal: "IEEE Reviews in Biomedical Engineering. 2019",
-    url: "https://pubmed.ncbi.nlm.nih.gov/30010594/",
-    summary:
-      "Comprehensive review of dynamic handwriting features — pressure, velocity, jerk — and their effectiveness as digital biomarkers for Parkinson's, Alzheimer's, and other neurodegenerative conditions.",
-  },
+
 ];
 
 /* ─── External Resources ───────────────────────────────────────────────── */
