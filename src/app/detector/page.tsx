@@ -11,6 +11,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
   Brain,
@@ -282,7 +283,12 @@ export default function DetectorPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Canvas Column */}
-          <div className="lg:col-span-2 space-y-4">
+          <motion.div
+            className="lg:col-span-2 space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -336,8 +342,16 @@ export default function DetectorPage() {
                   }}
                 />
 
+                <AnimatePresence mode="wait">
                 {activeTest === "spiral" && (
-                  <div className="flex flex-col items-center gap-3">
+                  <motion.div
+                    key="spiral"
+                    className="flex flex-col items-center gap-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     <SpiralTest
                       ref={spiralRef}
                       width={500}
@@ -348,25 +362,34 @@ export default function DetectorPage() {
                       onDrawingEnd={() => setIsDrawing(false)}
                     />
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload Spiral
-                      </Button>
+                      <motion.div whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload Spiral
+                        </Button>
+                      </motion.div>
                       {uploadedFile && (
                         <span className="text-xs text-cyan-400 truncate max-w-[160px]">
                           {uploadedFile.name}
                         </span>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
                 {activeTest === "wave" && (
-                  <div className="flex flex-col items-center gap-3">
+                  <motion.div
+                    key="wave"
+                    className="flex flex-col items-center gap-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     <WaveTest
                       ref={waveRef}
                       width={500}
@@ -376,42 +399,55 @@ export default function DetectorPage() {
                       onDrawingEnd={() => setIsDrawing(false)}
                     />
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload Wave
-                      </Button>
+                      <motion.div whileTap={{ scale: 0.95 }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload Wave
+                        </Button>
+                      </motion.div>
                       {uploadedFile && (
                         <span className="text-xs text-cyan-400 truncate max-w-[160px]">
                           {uploadedFile.name}
                         </span>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
 
                 {/* Predict Button */}
+                <AnimatePresence>
                 {(analysis || uploadedFile) && (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      size="sm"
-                      className="gap-1.5 text-xs"
-                      onClick={handlePredict}
-                      disabled={isPredicting}
-                    >
-                      {isPredicting ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Send className="w-3.5 h-3.5" />
-                      )}
-                      {isPredicting ? "Predicting…" : "Predict"}
-                    </Button>
-                  </div>
+                  <motion.div
+                    className="mt-4 flex justify-end"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <motion.div whileTap={{ scale: 0.93 }}>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={handlePredict}
+                        disabled={isPredicting}
+                      >
+                        {isPredicting ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                        {isPredicting ? "Predicting…" : "Predict"}
+                      </Button>
+                    </motion.div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
 
                 {/* ML Prediction Result */}
                 {prediction && (
@@ -432,11 +468,17 @@ export default function DetectorPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
 
           {/* Analysis Column */}
-          <div className="space-y-4">
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
+          >
             {/* Risk Assessment */}
+            <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }}>
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
@@ -493,8 +535,10 @@ export default function DetectorPage() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
 
             {/* Detailed Metrics */}
+            <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }}>
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
@@ -534,6 +578,7 @@ export default function DetectorPage() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
 
             {/* Disclaimer */}
             <div className="text-xs text-zinc-600 px-2 leading-relaxed">
@@ -542,7 +587,7 @@ export default function DetectorPage() {
               not a medical diagnostic device. Always consult a qualified
               healthcare professional for clinical evaluation.
             </div>
-          </div>
+          </motion.div>
         </div>
       </main>
 
