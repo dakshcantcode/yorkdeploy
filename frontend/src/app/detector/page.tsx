@@ -175,11 +175,18 @@ export default function DetectorPage() {
   const spiralFileInputRef = useRef<HTMLInputElement>(null);
   const waveFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Ensure API URL always has protocol
+  const getApiUrl = () => {
+    const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    return `https://${raw}`;
+  };
+
   // Health check on mount
   React.useEffect(() => {
     const checkHealth = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+        const API_URL = getApiUrl();
         const res = await fetch(`${API_URL}/health`, {
           method: "GET",
           signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -378,7 +385,7 @@ export default function DetectorPage() {
       }
 
       // Send JSON request with both images (with timeout)
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      const API_URL = getApiUrl();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
